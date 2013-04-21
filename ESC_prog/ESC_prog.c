@@ -61,7 +61,7 @@ Global variables definition
 
 //sums for PII regulator
 int sum1 = 0;
-int sum2 = 0;
+unsigned int sum2 = 0;
 
 //measured values
 unsigned char wantedSpeed = 0;			//output for the engine controller 0-255
@@ -101,7 +101,7 @@ unsigned char lastButtonState = 0;		//pressed buttons
 
 
 //conversion tables:
-const unsigned char tabA[194] PROGMEM = {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,8,8,9,9,9,10,10,11,11,12,12,13,13,14,14,15,16,16,17,17,18,19,20,20,21,22,23,24,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,43,44,45,47,48,49,51,52,54,55,57,58,60,62,63,65,67,69,71,72,74,76,78,80,82,84,86,89,91,93,95,97,100,102,104,107,109,112,114,117,119,122,125,27,130,133,136,139,141,144,147,150,153,156,160,163,166,169,172,176,179,182,186,189,192,196,199,203,206,210,214,217,221,225,228,232,236,240,244,248,252,255};
+const unsigned char tabA[194] PROGMEM = {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,8,8,9,9,9,10,10,11,11,12,12,13,13,14,14,15,16,16,17,17,18,19,20,20,21,22,23,24,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,43,44,45,47,48,49,51,52,54,55,57,58,60,62,63,65,67,69,71,72,74,76,78,80,82,84,86,89,91,93,95,97,100,102,104,107,109,112,114,117,119,122,125,127,130,133,136,139,141,144,147,150,153,156,160,163,166,169,172,176,179,182,186,189,192,196,199,203,206,210,214,217,221,225,228,232,236,240,244,248,252,255};
 const unsigned char tabI[109] PROGMEM = {0,3,5,8,10,12,15,17,19,22,24,26,29,31,34,36,38,41,43,45,48,50,52,55,57,59,62,64,67,69,71,74,76,78,81,83,85,88,90,93,95,97,100,102,104,107,109,111,114,116,118,121,123,126,128,130,133,135,137,140,142,144,147,149,152,154,156,159,161,163,166,168,170,173,175,177,180,182,185,187,189,192,194,196,199,201,203,206,208,211,213,215,218,220,222,225,227,229,232,234,236,239,241,244,246,248,251,253,255};
 //const unsigned char tabU[147] PROGMEM = {0,2,4,6,7,9,11,13,14,16,18,20,21,23,25,27,28,30,32,34,35,37,39,41,42,44,46,47,49,51,53,54,56,58,60,61,63,65,67,68,70,72,74,75,77,79,81,82,84,86,87,89,91,93,94,96,98,100,101,103,105,107,108,110,112,114,115,117,119,121,122,124,126,128,129,131,133,134,136,138,140,141,143,145,147,148,150,152,154,155,157,159,161,162,164,166,168,169,171,173,174,176,178,180,181,183,185,187,188,190,192,194,195,197,199,201,202,204,206,208,209,211,213,215,216,218,220,221,223,225,227,228,230,232,234,235,237,239,241,242,244,246,248,249,251,253,255};
 
@@ -116,28 +116,53 @@ const unsigned char tabSpeed[245] PROGMEM = {247,227,209,194,181,170,160,151,143
 //PII regulation !!!ZKONTROLOVAT!!!
 inline unsigned char regulator()
 {	
-	int realCurrent = actualCurrent*5;
-	if (wantedSpeed > 10) realCurrent = (actualCurrent*256)/wantedSpeed;
+	unsigned int realCurrent;//0 - 65 535 (0 - 12 800A), 255 = 50A
+	int delta;//-32768 - +32767
 	
-	int delta = wantedAcceleration-realCurrent;
-	
-	if (delta > 0)//acceleration
-	{		
-		if (sum1 < 255) sum1 += delta;
-		else sum1 = 255;
-		
-		if (sum2 < 32767) sum2 += (sum1 + delta); //32768 = max - 255 to output
-		else sum2 = 32768;		
-	} 
-	
-	else //slow down
-	{		
-		if (sum1 > -255) sum1 += delta;
-		else sum1 = -255;
-		
-		if (sum2 > 0) sum2 += (sum1 + delta); //0 = min - 0 to output
-		else sum2 = 0;		
+	if (wantedAcceleration == 0)//no acceleration wanted -> wanted speed = 0
+	{
+		sum2=0;
+		sum1=0;
+		return 0;		
 	}	
+	else if (wantedSpeed < 25 || actualCurrent < 25)//if wanted speed < 10% or current < 5A
+	{
+		sum2 = wantedAcceleration * 64;
+		sum1=0;
+		return wantedAcceleration;
+	}
+	
+	realCurrent = (actualCurrent*(unsigned int)256)/wantedSpeed;
+	if (realCurrent > 256) // real current is 50A - no more accelerate
+	{
+		return(sum2 >> 7);
+	} 
+	else if(realCurrent > 512) // real current is 100A !!! -> slow down
+	{
+		wantedAcceleration = 0;
+	}
+	
+	delta = wantedAcceleration - realCurrent;
+	
+	//acceleration - positive delta
+	if (wantedAcceleration >= realCurrent)
+	{	
+		if ( sum1 + delta > 255) sum1 = 255;
+		else sum1 += delta;
+		
+		if (sum2 + sum1 + delta < 32767) sum2 += (sum1 + delta); //32767 = max -> 255 to output
+		else sum2 = 32767;
+	} 
+	// slow down - negative delta
+	else
+	{		
+		if ( sum1 + delta < -255) sum1 = -255;
+		else sum1 += delta;
+		
+		if (sum2 > -(sum1 + delta)) sum2 += (sum1 + delta); //0 = min - 0 to output
+		else sum2 = 0;	
+	}
+	
 	return(sum2 >> 7);	
 }
 
@@ -220,7 +245,7 @@ inline void checkButton()
 		
 			case 3://booth button pressed - reset distance and consumed capacity
 				distance=0;
-				totalConsumedCapacity += (consumedCapacity/921600);
+				totalConsumedCapacity += (consumedCapacity/922);
 				consumedCapacity=0;
 			break;
 		
@@ -320,7 +345,7 @@ inline void displayRedraw()
 			break;
 		
 			case 2://2 total consumed capacity
-				toCharArray(&array,(totalConsumedCapacity)/1000);//show in Ah		
+				toCharArray(&array,(totalConsumedCapacity)/1000 + consumedCapacity/921600);//show in Ah		
 				displayWriteDataArray(array);
 				displayWriteDataArray(" Ah");
 			break;
@@ -333,7 +358,7 @@ inline void displayRedraw()
 			break;
 	
 			case 4://4 consumed capacity (mAh)
-				toCharArray(&array,consumedCapacity/921600);	//consumed capacity/256/3600 = mAh
+				toCharArray(&array,consumedCapacity/922);	//consumed capacity/256/3600 = mAh
 				displayWriteDataArray(array);
 				displayWriteDataArray(" mAh");
 			break;
@@ -427,19 +452,22 @@ ISR(TIMER1_COMPB_vect)
 	
 	consumedCapacity += actualCurrent+1;	//increment of consumed capacity
 		
-	if (actualCurrent>10) //current is higher than 2A - fan on
+	if (wantedAcceleration > 0)
 	{
 		setBit(OUTPUT,SF); //fan on 
 	} 
-	else//voltage measure if current is low (I<2A), fan is off
+	else
+	{
+		clearBit(OUTPUT,SF); //fan off
+	}
+	
+	if (actualCurrent < 10)//voltage measure if current is low (I<2A), fan is off
 	{
 		/*	VOLTAGE
 			11.4V = 38
 			12.8V - min 1.4V = 76
 			16.8V - max 3.4V = 184 */
 		actualVoltage = Measure(SU,0,180);
-		
-		clearBit(OUTPUT,SF); //fan off
 	}
 	
 }
@@ -484,7 +512,7 @@ ISR(INT1_vect)
 {
 	cli();//disable global interrupt
 	
-	totalConsumedCapacity += (consumedCapacity/921600);
+	totalConsumedCapacity += (consumedCapacity/922);
 	
 	//save data to EEPROM
 	eeprom_update_dword(15,totalDistance);
