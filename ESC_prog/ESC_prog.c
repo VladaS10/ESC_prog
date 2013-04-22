@@ -125,7 +125,8 @@ inline unsigned char regulator()
 		sum1=0;
 		return 0;		
 	}	
-	else if (wantedSpeed < 25 || actualCurrent < 25)//if wanted speed < 10% or current < 5A
+	
+	if (wantedSpeed < 25 || actualCurrent < 25)//if wanted speed < 10% or current < 5A
 	{
 		sum2 = wantedAcceleration * 64;
 		sum1=0;
@@ -133,25 +134,26 @@ inline unsigned char regulator()
 	}
 	
 	realCurrent = (actualCurrent*(unsigned int)256)/wantedSpeed;
+	
 	if (realCurrent > 256) // real current is 50A - no more accelerate
 	{
-		return(sum2 >> 7);
+		return(sum2 >> 6);
 	} 
 	else if(realCurrent > 512) // real current is 100A !!! -> slow down
 	{
 		wantedAcceleration = 0;
 	}
 	
-	delta = wantedAcceleration - realCurrent;
+	delta = (int)wantedAcceleration - realCurrent;
 	
 	//acceleration - positive delta
-	if (wantedAcceleration >= realCurrent)
+	if (delta >= 0)
 	{	
 		if ( sum1 + delta > 255) sum1 = 255;
 		else sum1 += delta;
 		
-		if (sum2 + sum1 + delta < 32767) sum2 += (sum1 + delta); //32767 = max -> 255 to output
-		else sum2 = 32767;
+		if (sum2 + sum1 + delta < 16383) sum2 += (sum1 + delta); //16383 = max -> 255 to output
+		else sum2 = 16383;
 	} 
 	// slow down - negative delta
 	else
@@ -163,9 +165,8 @@ inline unsigned char regulator()
 		else sum2 = 0;	
 	}
 	
-	return(sum2 >> 7);	
+	return(sum2 >> 6);	
 }
-
 //function for analog measure, return measured value
 //255=4.7V; 0 = 0V
 inline unsigned char Measure(unsigned char input_pin, unsigned char min, unsigned char max)
@@ -195,6 +196,67 @@ inline unsigned char Measure(unsigned char input_pin, unsigned char min, unsigne
 	}
 
 	//return measured;	
+}
+
+// convert unsigned int to char array 
+void toCharArray(char *array, unsigned int number)
+{
+	char i = 0;
+	if (number==0)
+	{
+		array[i] = '0';
+		i++;
+	}
+	while (number>0 && i<8)
+	{
+		array[i] = (number % 10) + '0';
+		number/=10;
+		i++;
+	}
+	array[i]='\0';
+	
+	for (char j=0;j<(i/2);j++)
+	{
+		char pom = array[j];
+		array[j] = array[i-j-1];
+		array[i-j-1] = pom;
+	}
+}
+
+//show on display which value is selected
+inline void displayShowMode(char mode)
+{
+			displayPausedCounter = 50;
+			displayPaused = 1;
+
+			switch(mode)
+			{
+				case 1:
+					displayWriteDataArray("Tot.dist");
+					break;
+				case 2:
+					displayWriteDataArray("Tot.cons");
+					break;
+				case 3:
+					displayWriteDataArray("Distance");
+					break;
+				case 4:
+					displayWriteDataArray("Consumed");
+					break;
+				case 5:
+					displayWriteDataArray("Rest cap");
+					break;
+				case 6:
+					displayWriteDataArray("Accu.   ");
+					break;
+				case 7:
+					displayWriteDataArray("Current ");
+					break;
+				case 8:
+					displayWriteDataArray("Speed   ");
+					break;
+					
+			}
 }
 
 //check if button pressed, change display line mode or clear distance and consumed capacity
@@ -252,67 +314,6 @@ inline void checkButton()
 		}
 	}	
 	
-}
-
-// convert unsigned int to char array 
-void toCharArray(char *array, unsigned int number)
-{
-	char i = 0;
-	if (number==0)
-	{
-		array[i] = '0';
-		i++;
-	}
-	while (number>0 && i<8)
-	{
-		array[i] = (number % 10) + '0';
-		number/=10;
-		i++;
-	}
-	array[i]='\0';
-	
-	for (char j=0;j<(i/2);j++)
-	{
-		char pom = array[j];
-		array[j] = array[i-j-1];
-		array[i-j-1] = pom;
-	}
-}
-
-//show on display which value is selected
-inline void displayShowMode(int mode)
-{
-			displayPausedCounter = 50;
-			displayPaused = 1;
-
-			switch(mode)
-			{
-				case 1:
-					displayWriteDataArray("Tot.dist");
-					break;
-				case 2:
-					displayWriteDataArray("Tot.cons");
-					break;
-				case 3:
-					displayWriteDataArray("Distance");
-					break;
-				case 4:
-					displayWriteDataArray("Consumed");
-					break;
-				case 5:
-					displayWriteDataArray("Rest cap");
-					break;
-				case 6:
-					displayWriteDataArray("Accu.   ");
-					break;
-				case 7:
-					displayWriteDataArray("Current ");
-					break;
-				case 8:
-					displayWriteDataArray("Speed   ");
-					break;
-					
-			}
 }
 
 //function for refresh display 
