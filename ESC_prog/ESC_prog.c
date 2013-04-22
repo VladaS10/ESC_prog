@@ -117,18 +117,19 @@ const unsigned char tabSpeed[245] PROGMEM = {247,227,209,194,181,170,160,151,143
 inline unsigned char regulator()
 {	
 	unsigned int realCurrent;//0 - 65 535 (0 - 12 800A), 255 = 50A
-	int delta;//-32768 - +32767
+	unsigned int delta;//-32768 - +32767
+	unsigned int pom;
 	
-	if (wantedAcceleration == 0)//no acceleration wanted -> wanted speed = 0
+	if (wantedAcceleration <= 1)//no acceleration wanted -> wanted speed = 0
 	{
 		sum2=0;
 		sum1=0;
 		return 0;		
 	}	
 	
-	if (wantedSpeed < 25 || actualCurrent < 25)//if wanted speed < 10% or current < 5A
+	if (wantedSpeed < 25 && actualCurrent < 25)//if wanted speed < 10% and current < 5A
 	{
-		sum2 = wantedAcceleration * 64;
+		sum2 = wantedAcceleration << 7;
 		sum1=0;
 		return wantedAcceleration;
 	}
@@ -137,36 +138,66 @@ inline unsigned char regulator()
 	
 	if (realCurrent > 256) // real current is 50A - no more accelerate
 	{
-		return(sum2 >> 6);
+		return(sum2 >> 7);
 	} 
 	else if(realCurrent > 512) // real current is 100A !!! -> slow down
 	{
 		wantedAcceleration = 0;
 	}
-	
-	delta = (int)wantedAcceleration - realCurrent;
-	
-	//acceleration - positive delta
-	if (delta >= 0)
-	{	
-		if ( sum1 + delta > 255) sum1 = 255;
-		else sum1 += delta;
 		
-		if (sum2 + sum1 + delta < 16383) sum2 += (sum1 + delta); //16383 = max -> 255 to output
-		else sum2 = 16383;
+	//acceleration - positive delta
+	if (wantedAcceleration >= realCurrent)
+	{	
+		delta = wantedAcceleration - realCurrent;
+		
+		//sum 1: 0 - 32 767
+		if (sum1 + delta < 32768) sum1 += delta;
+		else sum1 = 32767;		
+		
+		//sum 2
+		if ( sum2 + (sum1 >> 7) < 32768)
+		{ 
+			sum2 += (sum1 >> 7);
+			if (sum2 + delta < 32768)
+			{
+				sum2 += delta;
+			}						
+		}
+		else
+		{ 
+			sum2 = 32767;
+		}
 	} 
+	
 	// slow down - negative delta
 	else
-	{		
-		if ( sum1 + delta < -255) sum1 = -255;
-		else sum1 += delta;
+	{	
+		delta =  realCurrent - wantedAcceleration;	
 		
-		if (sum2 > -(sum1 + delta)) sum2 += (sum1 + delta); //0 = min - 0 to output
-		else sum2 = 0;	
+		//sum 1: 0 - 32 767
+		if (sum1 > delta) sum1 -= delta;
+		else sum1 = 0;		
+		
+		pom = 255 - (sum1 >> 7);
+		
+		//sum 2
+		if ( sum2 > delta)
+		{ 
+			sum2 -= delta;
+			if (sum2 > pom)
+			{
+				sum2 -= pom;
+			}						
+		}
+		else
+		{ 
+			sum2 = 0;
+		}
 	}
 	
-	return(sum2 >> 6);	
+	return(sum2 >> 7);	
 }
+
 //function for analog measure, return measured value
 //255=4.7V; 0 = 0V
 inline unsigned char Measure(unsigned char input_pin, unsigned char min, unsigned char max)
@@ -199,9 +230,11 @@ inline unsigned char Measure(unsigned char input_pin, unsigned char min, unsigne
 }
 
 // convert unsigned int to char array 
-void toCharArray(char *array, unsigned int number)
+void toCharArray(unsigned char *array, unsigned int number)
 {
-	char i = 0;
+	uint8_t i = 0,j=0;
+	char pom;
+	
 	if (number==0)
 	{
 		array[i] = '0';
@@ -215,9 +248,9 @@ void toCharArray(char *array, unsigned int number)
 	}
 	array[i]='\0';
 	
-	for (char j=0;j<(i/2);j++)
+	for (j=0;j<(i/2);j++)
 	{
-		char pom = array[j];
+		pom = array[j];
 		array[j] = array[i-j-1];
 		array[i-j-1] = pom;
 	}
@@ -319,7 +352,7 @@ inline void checkButton()
 //function for refresh display 
 inline void displayRedraw()
 {
-	char array[8];
+	unsigned char array[8];
 	unsigned char xlineMode = 0;
 	
 	if(displayPaused == 0){
@@ -516,9 +549,9 @@ ISR(INT1_vect)
 	totalConsumedCapacity += (consumedCapacity/922);
 	
 	//save data to EEPROM
-	eeprom_update_dword(15,totalDistance);
-	eeprom_update_dword(25,totalConsumedCapacity);
-	eeprom_update_byte(35,LineMode);
+	eeprom_update_dword((uint32_t*)15,totalDistance);
+	eeprom_update_dword((uint32_t*)25,totalConsumedCapacity);
+	eeprom_update_byte((uint8_t*)35,LineMode);
 	
 	
 	displaySetAddressDDRAM(0x00);
@@ -552,9 +585,9 @@ int main(void)
 	/*-----------------------
 	Restore data from eeprom
 	------------------------*/	
-	totalDistance = eeprom_read_dword(15);
-	totalConsumedCapacity = eeprom_read_dword(25);
-	LineMode = eeprom_read_byte(35);
+	totalDistance = eeprom_read_dword((uint32_t*)15);
+	totalConsumedCapacity = eeprom_read_dword((uint32_t*)25);
+	LineMode = eeprom_read_byte((uint8_t*)35);
 	
 	
 	/*-------------------------------------------------------------
@@ -622,7 +655,7 @@ int main(void)
 	displaySetAddressDDRAM(0x00);	
 	displayWriteDataArray(" HELLO  ");
 	displaySetAddressDDRAM(0x40);	
-	displayWriteDataArray("ver. 1.6");
+	displayWriteDataArray("ver. 1.8");
 			
     while(1)
     {       
