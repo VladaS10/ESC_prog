@@ -127,14 +127,17 @@ inline unsigned char regulator()
 		return 0;		
 	}	
 	
-	if (wantedSpeed < 25 && actualCurrent < 25)//if wanted speed < 10% and current < 5A
+	if (wantedAcceleration < 5)
 	{
 		sum2 = wantedAcceleration << 7;
-		sum1=0;
+		sum1 = 0;
 		return wantedAcceleration;
 	}
 	
-	realCurrent = (actualCurrent*(unsigned int)256)/wantedSpeed;
+	if (wantedSpeed > 10) realCurrent = (actualCurrent*(unsigned int)256)/wantedSpeed;
+	else realCurrent = 0;
+
+	
 	
 	if (realCurrent > 256) // real current is 50A - no more accelerate
 	{
@@ -195,7 +198,7 @@ inline unsigned char regulator()
 		}
 	}
 	
-	return(sum2 >> 7);	
+	return(sum2 >> 7);
 }
 
 //function for analog measure, return measured value
@@ -352,7 +355,7 @@ inline void checkButton()
 //function for refresh display 
 inline void displayRedraw()
 {
-	unsigned char array[8];
+	char array[8];
 	unsigned char xlineMode = 0;
 	
 	if(displayPaused == 0){
@@ -655,7 +658,7 @@ int main(void)
 	displaySetAddressDDRAM(0x00);	
 	displayWriteDataArray(" HELLO  ");
 	displaySetAddressDDRAM(0x40);	
-	displayWriteDataArray("ver. 1.8");
+	displayWriteDataArray("ver.1.8s");
 			
     while(1)
     {       
