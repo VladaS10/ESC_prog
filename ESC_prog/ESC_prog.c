@@ -66,9 +66,11 @@ unsigned int sum2 = 0;
 //measured values
 unsigned char wantedSpeed = 0;			//output for the engine controller 0-255
 
-unsigned char wantedAcceleration = 0;	//wanted input 0-255
+unsigned char wantedCurrent = 0;	//wanted input 0-255
 unsigned char actualCurrent = 0;		//0-50A 0-255
 unsigned char actualVoltage = 0;		//12.8-16.8V 80-180
+
+unsigned char current0 = 0;
 
 unsigned char CycleTime = 0;			//time of actual cycle			x2 ms
 unsigned char lastCyclePeriod = 0;		//last measured cycle period	x2 ms
@@ -101,13 +103,12 @@ unsigned char lastButtonState = 0;		//pressed buttons
 
 
 //conversion tables:
-const unsigned char tabA[194] PROGMEM = {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,8,8,9,9,9,10,10,11,11,12,12,13,13,14,14,15,16,16,17,17,18,19,20,20,21,22,23,24,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,43,44,45,47,48,49,51,52,54,55,57,58,60,62,63,65,67,69,71,72,74,76,78,80,82,84,86,89,91,93,95,97,100,102,104,107,109,112,114,117,119,122,125,127,130,133,136,139,141,144,147,150,153,156,160,163,166,169,172,176,179,182,186,189,192,196,199,203,206,210,214,217,221,225,228,232,236,240,244,248,252,255};
+//const unsigned char tabA[194] PROGMEM = {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,8,8,9,9,9,10,10,11,11,12,12,13,13,14,14,15,16,16,17,17,18,19,20,20,21,22,23,24,24,25,26,27,28,29,30,31,32,33,34,35,36,38,39,40,41,43,44,45,47,48,49,51,52,54,55,57,58,60,62,63,65,67,69,71,72,74,76,78,80,82,84,86,89,91,93,95,97,100,102,104,107,109,112,114,117,119,122,125,127,130,133,136,139,141,144,147,150,153,156,160,163,166,169,172,176,179,182,186,189,192,196,199,203,206,210,214,217,221,225,228,232,236,240,244,248,252,255};
+const unsigned char tabA[194] PROGMEM = {0,1,1,1,1,1,2,2,2,2,3,3,3,4,4,4,5,5,6,6,7,7,8,8,9,9,10,11,11,12,12,13,14,15,15,16,17,18,18,19,20,21,22,23,24,24,25,26,27,28,29,30,31,32,33,34,36,37,38,39,40,41,42,44,45,46,47,48,50,51,52,53,55,56,57,59,60,61,63,64,65,67,68,70,71,72,74,75,77,78,80,81,83,84,86,87,89,90,92,93,95,96,98,99,101,103,104,106,107,109,111,112,114,115,117,119,120,122,124,125,127,128,130,132,133,135,137,138,140,142,143,145,147,149,150,152,154,155,157,159,160,162,164,165,167,169,171,172,174,176,177,179,181,183,184,186,188,190,191,193,195,197,198,200,202,204,205,207,209,211,213,214,216,218,220,222,223,225,227,229,231,233,234,236,238,240,242,244,246,248,250,252,254,255};
 const unsigned char tabI[109] PROGMEM = {0,3,5,8,10,12,15,17,19,22,24,26,29,31,34,36,38,41,43,45,48,50,52,55,57,59,62,64,67,69,71,74,76,78,81,83,85,88,90,93,95,97,100,102,104,107,109,111,114,116,118,121,123,126,128,130,133,135,137,140,142,144,147,149,152,154,156,159,161,163,166,168,170,173,175,177,180,182,185,187,189,192,194,196,199,201,203,206,208,211,213,215,218,220,222,225,227,229,232,234,236,239,241,244,246,248,251,253,255};
 //const unsigned char tabU[147] PROGMEM = {0,2,4,6,7,9,11,13,14,16,18,20,21,23,25,27,28,30,32,34,35,37,39,41,42,44,46,47,49,51,53,54,56,58,60,61,63,65,67,68,70,72,74,75,77,79,81,82,84,86,87,89,91,93,94,96,98,100,101,103,105,107,108,110,112,114,115,117,119,121,122,124,126,128,129,131,133,134,136,138,140,141,143,145,147,148,150,152,154,155,157,159,161,162,164,166,168,169,171,173,174,176,178,180,181,183,185,187,188,190,192,194,195,197,199,201,202,204,206,208,209,211,213,215,216,218,220,221,223,225,227,228,230,232,234,235,237,239,241,242,244,246,248,249,251,253,255};
 
 const unsigned char tabSpeed[245] PROGMEM = {247,227,209,194,181,170,160,151,143,136,130,124,119,114,109,105,101,97,94,91,88,85,83,80,78,76,74,72,70,68,67,65,64,62,61,60,58,57,56,55,54,53,52,51,50,49,48,47,47,46,45,44,44,43,42,42,41,40,40,39,39,38,38,37,37,36,36,35,35,34,34,34,33,33,32,32,32,31,31,31,30,30,30,29,29,29,28,28,28,28,27,27,27,27,26,26,26,26,25,25,25,25,25,24,24,24,24,24,23,23,23,23,23,22,22,22,22,22,22,21,21,21,21,21,21,20,20,20,20,20,20,20,19,19,19,19,19,19,19,19,18,18,18,18,18,18,18,18,18,17,17,17,17,17,17,17,17,17,17,16,16,16,16,16,16,16,16,16,16,16,15,15,15,15,15,15,15,15,15,15,15,15,15,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,11,11,11,11,11,11,11,11,0};
-
-
 
 /*----------------------------------
 	Functions:
@@ -120,14 +121,15 @@ inline unsigned char regulator()
 	unsigned int delta;//-32768 - +32767
 	unsigned int pom;
 	
-	if (wantedAcceleration <= 1)//no acceleration wanted -> wanted speed = 0
+	if (wantedCurrent <= 1)//no acceleration wanted -> wanted speed = 0
 	{
 		sum2=0;
 		sum1=0;
+		current0 = actualCurrent;
 		return 0;		
 	}	
 	
-	if (wantedAcceleration < 5)
+	/*if (wantedAcceleration < 5)
 	{
 		sum2 = wantedAcceleration << 7;
 		sum1 = 0;
@@ -135,70 +137,60 @@ inline unsigned char regulator()
 	}
 	
 	if (wantedSpeed > 10) realCurrent = (actualCurrent*(unsigned int)256)/wantedSpeed;
-	else realCurrent = 0;
-
+	else realCurrent = 0;*/
 	
+	//linearized real current
+	realCurrent = ((actualCurrent-(unsigned int)current0)*(768 - 2 * wantedSpeed)) >> 8;
 	
-	if (realCurrent > 256) // real current is 50A - no more accelerate
+	/*if (realCurrent > 256) // real current is 50A - no more accelerate
 	{
-		return(sum2 >> 7);
+		return(sum2 >> 6);
 	} 
 	else if(realCurrent > 512) // real current is 100A !!! -> slow down
 	{
 		wantedAcceleration = 0;
-	}
+	}*/	
 		
 	//acceleration - positive delta
-	if (wantedAcceleration >= realCurrent)
+	if (wantedCurrent >= realCurrent)
 	{	
-		delta = wantedAcceleration - realCurrent;
+		delta = wantedCurrent - realCurrent;
 		
 		//sum 1: 0 - 32 767
-		if (sum1 + delta < 32768) sum1 += delta;
-		else sum1 = 32767;		
+		if (sum1 + delta < 16384) sum1 += delta;
+		else sum1 = 16384;		
 		
 		//sum 2
-		if ( sum2 + (sum1 >> 7) < 32768)
+		pom = (sum1 >> 6);
+		if ( sum2 + pom < 16384)
 		{ 
-			sum2 += (sum1 >> 7);
-			if (sum2 + delta < 32768)
-			{
-				sum2 += delta;
-			}						
+			sum2 += pom;
+			if (sum2 + delta < 16384) sum2 += delta;						
 		}
-		else
-		{ 
-			sum2 = 32767;
-		}
+		else sum2 = 16383;
 	} 
 	
 	// slow down - negative delta
 	else
 	{	
-		delta =  realCurrent - wantedAcceleration;	
+		delta =  realCurrent - wantedCurrent;	
 		
 		//sum 1: 0 - 32 767
 		if (sum1 > delta) sum1 -= delta;
 		else sum1 = 0;		
 		
-		pom = 255 - (sum1 >> 7);
+		pom = 16383 - (sum1 >> 6);
 		
 		//sum 2
 		if ( sum2 > delta)
 		{ 
 			sum2 -= delta;
-			if (sum2 > pom)
-			{
-				sum2 -= pom;
-			}						
+			if (sum2 > pom) sum2 -= pom;						
 		}
-		else
-		{ 
-			sum2 = 0;
-		}
+		else sum2 = 0;
 	}
-	
-	return(sum2 >> 7);
+		
+	return(sum2 >> 6);
 }
 
 //function for analog measure, return measured value
@@ -464,7 +456,7 @@ ISR(TIMER1_COMPA_vect)			//auto reload OCR1A - CTC mode
 	/*	ACELERATION
 		min 0.86V = 51
 		max 4.5V = 244 */
-	wantedAcceleration = pgm_read_byte(&tabA[Measure(SA,51,244)]);
+	wantedCurrent = pgm_read_byte(&tabA[Measure(SA,51,244)]);
 	
 	//display pause timer decrement
 	if(displayPaused == 1)
@@ -489,14 +481,8 @@ ISR(TIMER1_COMPB_vect)
 	
 	consumedCapacity += actualCurrent+1;	//increment of consumed capacity
 		
-	if (wantedAcceleration > 0)
-	{
-		setBit(OUTPUT,SF); //fan on 
-	} 
-	else
-	{
-		clearBit(OUTPUT,SF); //fan off
-	}
+	if (wantedCurrent > 0) setBit(OUTPUT,SF); //fan on 
+	else clearBit(OUTPUT,SF); //fan off
 	
 	if (actualCurrent < 10)//voltage measure if current is low (I<2A), fan is off
 	{
@@ -532,16 +518,9 @@ ISR(INT0_vect)
 	distance++;
 	totalDistance++;
 	
-	//actual speed 
-	if (lastCyclePeriod>10)
-	{
-		actualSpeed=pgm_read_byte(&tabSpeed[lastCyclePeriod-11]);
-	} 
-	else
-	{
-		actualSpeed=255;
-	}
-	
+	//actual speed, 11 = minimal period = 61,75km/h
+	if (lastCyclePeriod>10) actualSpeed=pgm_read_byte(&tabSpeed[lastCyclePeriod-11]); 
+	else actualSpeed=255;	
 }
 
 // external interrupt 1 - OFF signal
@@ -658,7 +637,7 @@ int main(void)
 	displaySetAddressDDRAM(0x00);	
 	displayWriteDataArray(" HELLO  ");
 	displaySetAddressDDRAM(0x40);	
-	displayWriteDataArray("ver.1.8s");
+	displayWriteDataArray("ver.1.9l");
 			
     while(1)
     {       
