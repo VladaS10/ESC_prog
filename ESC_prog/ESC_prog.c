@@ -60,7 +60,7 @@ Global variables definition
 -----------------------------------*/
 
 //sums for PII regulator
-int sum1 = 0;
+unsigned int sum1 = 0;
 unsigned int sum2 = 0;
 
 //measured values
