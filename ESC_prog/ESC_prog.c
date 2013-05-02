@@ -140,7 +140,7 @@ inline unsigned char regulator()
 	else realCurrent = 0;*/
 	
 	//linearized real current
-	realCurrent = ((actualCurrent-(unsigned int)current0)*(768 - 2 * wantedSpeed)) >> 8;
+	realCurrent = ((actualCurrent - (unsigned int)current0)*(768 - 2 * wantedSpeed)) >> 8;
 	
 	/*if (realCurrent > 256) // real current is 50A - no more accelerate
 	{
@@ -158,7 +158,7 @@ inline unsigned char regulator()
 		
 		//sum 1: 0 - 32 767
 		if (sum1 + delta < 16384) sum1 += delta;
-		else sum1 = 16384;		
+		else sum1 = 16383;		
 		
 		//sum 2
 		pom = (sum1 >> 6);
@@ -179,7 +179,7 @@ inline unsigned char regulator()
 		if (sum1 > delta) sum1 -= delta;
 		else sum1 = 0;		
 		
-		pom = 16383 - (sum1 >> 6);
+		pom = 255 - (sum1 >> 6);
 		
 		//sum 2
 		if ( sum2 > delta)
@@ -407,8 +407,11 @@ inline void displayRedraw()
 			break;
 	
 			case 6://6 voltage
-				toCharArray(&array,(10 + actualVoltage/25));	//10V + 1/25V 100 = 4V	
+				toCharArray(&array,(10 + actualVoltage/25));	//10V + 1/25V 100 = 4V
 				displayWriteDataArray(array);
+				displayWriteData('.');
+				toCharArray(&array,((actualVoltage%25) * 4)/10);	//25 = 1V 24*4 /10 = 96/10 = 9
+				displayWriteDataArray(array);				
 				displayWriteDataArray(" V");
 			break;
 	
@@ -637,7 +640,7 @@ int main(void)
 	displaySetAddressDDRAM(0x00);	
 	displayWriteDataArray(" HELLO  ");
 	displaySetAddressDDRAM(0x40);	
-	displayWriteDataArray("ver.1.9l");
+	displayWriteDataArray("ver. 2.1");
 			
     while(1)
     {       
